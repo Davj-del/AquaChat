@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaNet - The Crystal Clear Network</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        * {
+            font-family: 'Segoe UI', 'Trebuchet MS', sans-serif;
+            user-select: none;
+        }
+
+        /* Frutiger Aero Background Themes */
+        .theme-sky {
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 40%, #a5f3fc 70%, #f0fdf4 100%);
+        }
+        .theme-sunset {
+            background: linear-gradient(135deg, #0284c7 0%, #818cf8 35%, #c084fc 65%, #fbcfe8 100%);
+        }
+        .theme-emerald {
+            background: linear-gradient(135deg, #0369a1 0%, #0d9488 40%, #34d399 75%, #ecfdf5 100%);
+        }
+        .theme-night {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #0369a1 80%, #0891b2 100%);
+        }
+
+        /* Aero Glass Effect */
+        .aero-glass {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 8px 32px 0 rgba(0, 100, 180, 0.2), 
+                        inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+                        inset 0 -1px 0 0 rgba(0, 0, 0, 0.1);
+        }
+
+        /* Shiny Aero Buttons */
+        .aero-btn {
+            background: linear-gradient(180deg, 
+                rgba(255,255,255,0.9) 0%, 
+                rgba(255,255,255,0.4) 48%, 
+                rgba(200,230,255,0.5) 52%, 
+                rgba(150,210,255,0.8) 100%);
+            border: 1px solid rgba(0, 120, 215, 0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9);
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .aero-btn:hover {
+            background: linear-gradient(180deg, 
+                rgba(255,255,255,1) 0%, 
+                rgba(220,240,255,0.6) 48%, 
+                rgba(170,225,255,0.7) 52%, 
+                rgba(100,190,255,0.9) 100%);
+            border-color: #0284c7;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 0 #fff;
+            transform: translateY(-1px);
+        }
+        .aero-btn:active {
+            transform: translateY(1px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .aero-btn-emerald {
+            background: linear-gradient(180deg, 
+                rgba(255,255,255,0.9) 0%, 
+                rgba(209,250,229,0.5) 48%, 
+                rgba(167,243,208,0.6) 52%, 
+                rgba(52,211,153,0.8) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+
+        /* Aero Scrollbars */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(56,189,248,0.8), rgba(2,132,199,0.8));
+            border-radius: 5px;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+
+        /* Dynamic Water Ripple Canvas */
+        #ripple-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes floatBubble {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+        }
+        .bubble {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.1));
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: floatBubble 12s infinite linear;
+        }
+    </style>
+</head>
+<body id="app-body" class="theme-sky min-h-screen text-slate-800 relative overflow-x-hidden">
+
+    <!-- Interactive Water Ripple Canvas -->
+    <canvas id="ripple-canvas"></canvas>
+
+    <!-- Background Ambient Bubbles -->
+    <div id="bubble-container" class="fixed inset-0 pointer-events-none z-0 overflow-hidden"></div>
+
+    <div class="relative z-10 max-w-6xl mx-auto p-3 md:p-6 flex flex-col min-h-screen gap-4">
+
+        <!-- HEADER AERO GLASS -->
+        <header class="aero-glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full aero-btn flex items-center justify-center text-sky-600 text-2xl shadow-inner relative overflow-hidden">
+                    <i class="fa-solid fa-sphere fa-spin" style="animation-duration: 20s;"></i>
+                    <div class="absolute inset-0 bg-white/30 rounded-full blur-xs"></div>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-wide bg-gradient-to-r from-sky-700 via-blue-600 to-teal-600 bg-clip-text text-transparent drop-shadow-sm">
+                        AquaNet <span class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-800 border border-sky-300 font-normal">v3.0</span>
+                    </h1>
+                    <p class="text-xs font-semibold text-sky-900/70">The Crystal Clear Network &bull; Chat Anónimo</p>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="flex-1 max-w-md mx-2">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sky-600/60"></i>
+                    <input type="text" id="search-input" oninput="filterPosts()" placeholder="Buscar mensajes o usuarios en AquaNet..." 
+                           class="w-full pl-9 pr-4 py-2 rounded-xl bg-white/60 backdrop-blur-md border border-white/80 focus:outline-none focus:ring-2 focus:ring-sky-400 text-sm placeholder-sky-800/50 shadow-inner">
+                </div>
+            </div>
+
+            <!-- Header Controls & Donation Button -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- Clock Widget -->
+                <div class="hidden sm:flex flex-col text-right pr-2 text-xs font-bold text-sky-900/80 border-r border-white/40">
+                    <span id="aero-clock">00:00:00</span>
+                    <span class="text-[10px] text-teal-800/70"><i class="fa-solid fa-sun text-amber-500"></i> AquaNet Online</span>
+                </div>
+
+                <!-- Theme Selector -->
+                <select onchange="changeTheme(this.value)" class="aero-btn text-xs px-2 py-1.5 rounded-lg text-sky-900 font-bold outline-none cursor-pointer">
+                    <option value="theme-sky">🌊 Día Templado</option>
+                    <option value="theme-sunset">🌅 Atardecer Neón</option>
+                    <option value="theme-emerald">🍃 Esmeralda</option>
+                    <option value="theme-night">🌙 Noche Cristalina</option>
+                </select>
+
+                <!-- DONATE BUTTON -->
+                <button onclick="openDonateModal()" class="aero-btn aero-btn-emerald text-emerald-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:scale-105 transition-transform">
+                    <i class="fa-solid fa-heart text-pink-500 animate-pulse"></i> Donar
+                </button>
+
+                <!-- ADMIN BUTTON -->
+                <button onclick="openAdminModal()" class="aero-btn text-sky-900 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved text-sky-600"></i> Admin
+                </button>
+            </div>
+        </header>
+
+        <!-- FEATURED POST BANNER -->
+        <div id="featured-post-banner" class="hidden aero-glass rounded-2xl p-3 border-2 border-amber-300/80 bg-gradient-to-r from-amber-100/60 via-white/50 to-sky-100/60 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-xs font-extrabold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-star text-amber-500 animate-spin" style="animation-duration: 8s;"></i> Publicación Destacada del Día
+                </span>
+                <span class="text-[10px] text-amber-900/60 font-semibold">Seleccionado por AquaNet</span>
+            </div>
+            <div id="featured-post-content" class="text-sm font-medium text-slate-800 italic">
+                Cargando post destacado...
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
+
+            <!-- LEFT SIDEBAR -->
+            <aside class="lg:col-span-1 flex flex-col gap-4">
+                
+                <!-- USER PROFILE PANEL -->
+                <div class="aero-glass rounded-2xl p-4 flex flex-col gap-3 shadow-md">
+                    <h2 class="text-xs font-bold uppercase text-sky-900/80 tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-sky-600"></i> Perfil de AquaNet
+                    </h2>
+                    <div class="flex items-center gap-3">
+                        <div id="user-avatar" class="w-12 h-12 rounded-2xl aero-btn flex items-center justify-center text-xl text-white font-bold shadow-md cursor-pointer">
+                            👤
+                        </div>
+                        <div class="flex-1">
+                            <input type="text" id="username-input" value="ViajeroAero" class="w-full text-sm font-bold text-sky-950 bg-white/50 border border-white/80 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                            <span id="user-role-badge" class="text-[10px] font-bold text-sky-700 bg-sky-200/60 px-2 py-0.5 rounded-full inline-block mt-1">Usuario Anónimo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NAVIGATION / FILTERS -->
+                <div class="aero-glass rounded-2xl p-3 flex flex-col gap-1.5 shadow-md">
+                    <button onclick="setFilter('all')" id="btn-filter-all" class="aero-btn text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-950 flex items-center justify-between">
+                        <span><i class="fa-solid fa-comments text-sky-600 mr-2"></i> Todos los Posts</span>
+                        <span id="count-all" class="bg-sky-200/80 text-sky-900 text-[10px] px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="setFilter('favorites')" id="btn-filter-favs" class="aero-btn text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-950 flex items-center justify-between opacity-80 hover:opacity-100">
+                        <span><i class="fa-solid fa-star text-amber-500 mr-2"></i> Mis Favoritos</span>
+                        <span id="count-favs" class="bg-amber-200/80 text-amber-900 text-[10px] px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                </div>
+
+                <!-- ROOMS PANEL -->
+                <div class="aero-glass rounded-2xl p-4 flex flex-col gap-2 shadow-md flex-1">
+                    <h2 class="text-xs font-bold uppercase text-sky-900/80 tracking-wider flex items-center gap-2 mb-1">
+                        <i class="fa-solid fa-compass text-teal-600"></i> Canales
+                    </h2>
+                    <button onclick="switchRoom('general')" id="room-general" class="aero-btn text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-900 flex items-center justify-between border-l-4 border-l-sky-500">
+                        <span># general</span>
+                        <i class="fa-solid fa-chevron-right text-[10px] opacity-60"></i>
+                    </button>
+                    <button onclick="switchRoom('multimedia')" id="room-multimedia" class="aero-btn text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-900 opacity-80 hover:opacity-100 flex items-center justify-between">
+                        <span># multimedia</span>
+                        <i class="fa-solid fa-chevron-right text-[10px] opacity-60"></i>
+                    </button>
+                    <button onclick="switchRoom('lounge')" id="room-lounge" class="aero-btn text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-900 opacity-80 hover:opacity-100 flex items-center justify-between">
+                        <span># aero-lounge</span>
+                        <i class="fa-solid fa-chevron-right text-[10px] opacity-60"></i>
+                    </button>
+                </div>
+
+            </aside>
+
+            <!-- CHAT FEED & INPUT AREA -->
+            <main class="lg:col-span-3 flex flex-col gap-4">
+
+                <!-- POST CREATOR -->
+                <div class="aero-glass rounded-2xl p-4 shadow-lg border border-white/80">
+                    <textarea id="post-input" rows="2" placeholder="Publica en AquaNet libremente..." 
+                              class="w-full p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/90 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-sky-900/40 resize-none shadow-inner"></textarea>
+                    
+                    <!-- Attachment Preview Box -->
+                    <div id="media-preview-box" class="hidden mt-2 p-2 rounded-xl bg-sky-100/50 border border-sky-200 flex items-center justify-between">
+                        <span id="media-preview-name" class="text-xs font-bold text-sky-900 truncate">archivo.png</span>
+                        <button onclick="clearMedia()" class="text-red-500 hover:text-red-700 text-xs px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <!-- Creator Controls -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-white/50">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <!-- Attachments -->
+                            <label class="aero-btn text-sky-900 text-xs px-2.5 py-1.5 rounded-lg font-semibold cursor-pointer flex items-center gap-1">
+                                <i class="fa-solid fa-image text-sky-600"></i> Imagen/Media
+                                <input type="file" id="media-file-input" accept="image/*,video/*,audio/*" class="hidden" onchange="handleMediaSelect(event)">
+                            </label>
+
+                            <!-- Stickers -->
+                            <span class="text-xs text-sky-900/60 font-bold ml-1">Stickers:</span>
+                            <div class="flex items-center gap-1">
+                                <button onclick="addSticker('💧')" class="hover:scale-125 transition-transform text-sm">💧</button>
+                                <button onclick="addSticker('🔮')" class="hover:scale-125 transition-transform text-sm">🔮</button>
+                                <button onclick="addSticker('🍃')" class="hover:scale-125 transition-transform text-sm">🍃</button>
+                                <button onclick="addSticker('☀️')" class="hover:scale-125 transition-transform text-sm">☀️</button>
+                                <button onclick="addSticker('🐬')" class="hover:scale-125 transition-transform text-sm">🐬</button>
+                                <button onclick="addSticker('💖')" class="hover:scale-125 transition-transform text-sm">💖</button>
+                            </div>
+                        </div>
+
+                        <button onclick="submitPost()" class="aero-btn text-sky-950 font-bold px-5 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow-md">
+                            <span>Publicar</span> <i class="fa-solid fa-paper-plane text-sky-600"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- POSTS FEED CONTAINER -->
+                <div id="posts-container" class="flex flex-col gap-3 min-h-[400px]"></div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- DONATE MODAL -->
+    <div id="modal-donate" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="aero-glass rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white/90 relative">
+            <button onclick="closeDonateModal()" class="absolute right-4 top-4 text-sky-900/60 hover:text-sky-950 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="text-center mb-5">
+                <div class="w-14 h-14 rounded-full aero-btn-emerald mx-auto flex items-center justify-center text-emerald-700 text-2xl shadow-lg mb-2">
+                    <i class="fa-solid fa-heart animate-bounce"></i>
+                </div>
+                <h3 class="text-xl font-extrabold text-sky-950">Donaciones AquaNet</h3>
+                <p class="text-xs text-sky-900/70">Selecciona la causa a la que deseas enviar apoyo</p>
+            </div>
+
+            <!-- DONATION CAUSES -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="selectCause('project')" id="cause-project" class="aero-btn p-3 rounded-2xl text-left border-2 border-emerald-500 bg-emerald-50/50">
+                    <div class="text-xs font-bold text-emerald-950 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-rocket text-emerald-600"></i> Apoyar el Proyecto
+                    </div>
+                    <p class="text-[10px] text-emerald-900/70">Mantenimiento y hosting de AquaNet.</p>
+                </button>
+                <button onclick="selectCause('creator')" id="cause-creator" class="aero-btn p-3 rounded-2xl text-left border-2 border-transparent">
+                    <div class="text-xs font-bold text-sky-950 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-mug-hot text-amber-600"></i> Apoyar al Creador
+                    </div>
+                    <p class="text-[10px] text-sky-900/70">Apoyo directo para ti como desarrollador.</p>
+                </button>
+            </div>
+
+            <!-- AMOUNT SELECTOR -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-sky-900 mb-2">Monto (USD):</label>
+                <div class="grid grid-cols-4 gap-2 mb-2">
+                    <button onclick="setAmount(3)" class="aero-btn py-1.5 rounded-xl text-xs font-bold text-sky-900">$3</button>
+                    <button onclick="setAmount(5)" class="aero-btn py-1.5 rounded-xl text-xs font-bold text-sky-900">$5</button>
+                    <button onclick="setAmount(10)" class="aero-btn py-1.5 rounded-xl text-xs font-bold text-sky-900">$10</button>
+                    <button onclick="setAmount(25)" class="aero-btn py-1.5 rounded-xl text-xs font-bold text-sky-900">$25</button>
+                </div>
+                <input type="number" id="custom-amount" value="5" min="1" 
+                       class="w-full p-2.5 rounded-xl bg-white/70 border border-white/90 text-sm font-bold text-sky-950 focus:outline-none">
+            </div>
+
+            <!-- PAYMENT BUTTON -->
+            <button onclick="processDonation()" class="w-full aero-btn aero-btn-emerald py-3 rounded-2xl font-extrabold text-emerald-950 text-sm shadow-lg flex items-center justify-center gap-2">
+                <i class="fa-brands fa-paypal text-base"></i> Donar por PayPal / Tarjeta
+            </button>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="modal-admin" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="aero-glass rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-white/90 relative">
+            <button onclick="closeAdminModal()" class="absolute right-4 top-4 text-sky-900/60 hover:text-sky-950 text-lg"><i class="fa-solid fa-xmark"></i></button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full aero-btn flex items-center justify-center text-sky-700 text-lg">
+                    <i class="fa-solid fa-shield-cat"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-extrabold text-sky-950">Panel de Administración AquaNet</h3>
+                    <p class="text-xs text-sky-900/70">Control de moderación y administración</p>
+                </div>
+            </div>
+
+            <!-- PASSWORD AUTH -->
+            <div id="admin-auth-box" class="mb-4">
+                <label class="block text-xs font-bold text-sky-900 mb-1">Clave de Administrador:</label>
+                <div class="flex gap-2">
+                    <input type="password" id="admin-pass-input" placeholder="Clave por defecto: admin123" class="flex-1 p-2 rounded-xl bg-white/70 border border-white/90 text-sm focus:outline-none">
+                    <button onclick="verifyAdminPass()" class="aero-btn font-bold px-4 rounded-xl text-xs text-sky-900">Entrar</button>
+                </div>
+            </div>
+
+            <!-- ADMIN CONTROLS -->
+            <div id="admin-controls" class="hidden flex flex-col gap-3">
+                <div class="p-3 rounded-2xl bg-sky-100/60 border border-sky-200 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-bold text-sky-950 block">Rol Actual: <span id="admin-status-text" class="text-emerald-600">Autenticado</span></span>
+                        <span class="text-[10px] text-sky-900/60">Otorga badge verificado y moderación</span>
+                    </div>
+                    <button onclick="promoteSelfAdmin()" class="aero-btn aero-btn-emerald font-bold px-3 py-1.5 rounded-xl text-xs text-emerald-950 shadow-md">
+                        <i class="fa-solid fa-crown text-amber-500 mr-1"></i> Promover Mi Usuario
+                    </button>
+                </div>
+
+                <!-- REPORTED POSTS QUEUE -->
+                <div class="p-3 rounded-2xl bg-rose-50/50 border border-rose-200">
+                    <h4 class="text-xs font-bold text-rose-900 flex items-center justify-between mb-2">
+                        <span><i class="fa-solid fa-flag text-rose-600 mr-1"></i> Cola de Reportes</span>
+                        <span id="reported-count" class="bg-rose-200 text-rose-900 text-[10px] px-2 py-0.5 rounded-full">0</span>
+                    </h4>
+                    <div id="reported-list" class="max-h-32 overflow-y-auto text-xs flex flex-col gap-1 text-slate-700">
+                        <p class="text-[11px] text-slate-500 italic">No hay reportes pendientes.</p>
+                    </div>
+                </div>
+
+                <button onclick="clearCurrentRoom()" class="aero-btn font-bold px-4 py-2 rounded-xl text-xs text-red-700 hover:bg-red-50 border-red-300">
+                    <i class="fa-solid fa-trash-can mr-1"></i> Vaciar Todos los Mensajes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        // Local Memory & Application State
+        let posts = [];
+        let currentRoom = 'general';
+        let currentFilter = 'all';
+        let isAdmin = false;
+        let selectedCause = 'project';
+        let selectedMediaData = null;
+        let favoritePostIds = new Set();
+
+        // --- RIPPLE CANVAS EFFECT ---
+        const canvas = document.getElementById('ripple-canvas');
+        const ctx = canvas.getContext('2d');
+        let ripples = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('click', (e) => {
+            ripples.push({ x: e.clientX, y: e.clientY, radius: 5, alpha: 0.8 });
+        });
+
+        function animateRipples() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const r = ripples[i];
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(56, 189, 248, ${r.alpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                r.radius += 2.5;
+                r.alpha -= 0.025;
+                if (r.alpha <= 0) ripples.splice(i, 1);
+            }
+            requestAnimationFrame(animateRipples);
+        }
+        animateRipples();
+
+        // --- CLOCK ---
+        setInterval(() => {
+            const clockEl = document.getElementById('aero-clock');
+            if (clockEl) clockEl.textContent = new Date().toLocaleTimeString();
+        }, 1000);
+
+        // --- SAMPLE INITIAL POSTS ---
+        function loadSamplePosts() {
+            posts = [
+                {
+                    id: '1',
+                    room: 'general',
+                    username: 'AquaMaster',
+                    isAdmin: true,
+                    text: '¡Bienvenidos a AquaNet! Disfruten de la experiencia cristalina, compartan imágenes y usen los canales.',
+                    timestamp: '10:30 AM',
+                    favs: 5,
+                    reports: 0,
+                    media: null,
+                    reactions: { '💧': 4, '💖': 2 }
+                },
+                {
+                    id: '2',
+                    room: 'general',
+                    username: 'NostalgicoAero',
+                    isAdmin: false,
+                    text: 'El estilo Frutiger Aero en AquaNet se ve genial. ¡Totalmente retro-futurista!',
+                    timestamp: '10:42 AM',
+                    favs: 8,
+                    reports: 0,
+                    media: null,
+                    reactions: { '🔮': 3, '☀️': 5 }
+                }
+            ];
+            renderPosts();
+        }
+
+        // --- RENDER ENGINE ---
+        function renderPosts() {
+            const container = document.getElementById('posts-container');
+            if (!container) return;
+
+            const searchInput = document.getElementById('search-input')?.value.toLowerCase() || '';
+            let filtered = posts.filter(p => p.room === currentRoom);
+
+            if (currentFilter === 'favorites') {
+                filtered = filtered.filter(p => favoritePostIds.has(p.id));
+            }
+
+            if (searchInput) {
+                filtered = filtered.filter(p => p.text.toLowerCase().includes(searchInput) || p.username.toLowerCase().includes(searchInput));
+            }
+
+            document.getElementById('count-all').textContent = posts.filter(p => p.room === currentRoom).length;
+            document.getElementById('count-favs').textContent = favoritePostIds.size;
+
+            updateFeaturedPost();
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="aero-glass rounded-2xl p-8 text-center text-sky-900/60 font-semibold">
+                        <i class="fa-solid fa-water text-3xl mb-2 text-sky-400"></i>
+                        <p>No hay mensajes en esta vista de AquaNet.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(post => {
+                const isFav = favoritePostIds.has(post.id);
+                return `
+                <div class="aero-glass rounded-2xl p-4 shadow-md border border-white/80 relative flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-xs ${post.isAdmin ? 'text-emerald-700' : 'text-sky-950'} flex items-center gap-1">
+                                ${post.username} ${post.isAdmin ? '<i class="fa-solid fa-circle-check text-emerald-500" title="Admin Oficial"></i>' : ''}
+                            </span>
+                            <span class="text-[10px] text-sky-900/50 font-semibold">${post.timestamp}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleFavorite('${post.id}')" class="text-xs ${isFav ? 'text-amber-500' : 'text-sky-900/40 hover:text-amber-500'}">
+                                <i class="fa-solid fa-star"></i>
+                            </button>
+                            <button onclick="reportPost('${post.id}')" class="text-xs text-sky-900/40 hover:text-rose-500" title="Reportar">
+                                <i class="fa-solid fa-flag"></i>
+                            </button>
+                            ${isAdmin ? `
+                                <button onclick="censorePost('${post.id}')" class="text-xs text-amber-600 font-bold">Censurar</button>
+                                <button onclick="deletePost('${post.id}')" class="text-xs text-rose-600 font-bold"><i class="fa-solid fa-trash"></i></button>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <p class="text-sm font-medium text-slate-800 leading-relaxed">${post.text}</p>
+
+                    ${post.media ? renderMediaElement(post.media) : ''}
+
+                    <div class="flex items-center justify-between mt-2 pt-2 border-t border-white/40 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            ${Object.entries(post.reactions || {}).map(([emoji, count]) => `
+                                <button onclick="reactPost('${post.id}', '${emoji}')" class="aero-btn px-2 py-0.5 rounded-lg text-[11px] font-bold text-sky-900">
+                                    ${emoji}${count}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <button onclick="reactPost('${post.id}', '💧')" class="aero-btn px-2.5 py-1 rounded-lg text-[11px] font-bold text-sky-900">
+                            + Reaccionar 💧
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderMediaElement(media) {
+            if (media.type.startsWith('image/')) {
+                return `<img src="${media.url}" class="max-h-60 rounded-xl object-cover border border-white/80 shadow-sm mt-1">`;
+            } else if (media.type.startsWith('audio/')) {
+                return `<audio controls src="${media.url}" class="w-full mt-1"></audio>`;
+            } else if (media.type.startsWith('video/')) {
+                return `<video controls src="${media.url}" class="max-h-60 w-full rounded-xl mt-1"></video>`;
+            }
+            return '';
+        }
+
+        function submitPost() {
+            const input = document.getElementById('post-input');
+            const username = document.getElementById('username-input').value || 'Anónimo';
+            const text = input.value.trim();
+
+            if (!text && !selectedMediaData) return;
+
+            posts.unshift({
+                id: Date.now().toString(),
+                room: currentRoom,
+                username: username,
+                isAdmin: isAdmin,
+                text: text || '(Archivo Multimedia)',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                favs: 0,
+                reports: 0,
+                media: selectedMediaData,
+                reactions: { '💧': 1 }
+            });
+
+            input.value = '';
+            clearMedia();
+            renderPosts();
+        }
+
+        function handleMediaSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                selectedMediaData = { type: file.type, url: evt.target.result, name: file.name };
+                document.getElementById('media-preview-name').textContent = file.name;
+                document.getElementById('media-preview-box').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearMedia() {
+            selectedMediaData = null;
+            document.getElementById('media-preview-box')?.classList.add('hidden');
+        }
+
+        function addSticker(emoji) {
+            const input = document.getElementById('post-input');
+            if (input) input.value += ' ' + emoji;
+        }
+
+        function updateFeaturedPost() {
+            const banner = document.getElementById('featured-post-banner');
+            const content = document.getElementById('featured-post-content');
+            if (!banner || !content || posts.length === 0) return;
+
+            const topPost = [...posts].sort((a,b) => (b.favs || 0) - (a.favs || 0))[0];
+            if (topPost) {
+                banner.classList.remove('hidden');
+                content.innerHTML = `<strong>${topPost.username}:</strong> "${topPost.text}"`;
+            }
+        }
+
+        function toggleFavorite(id) {
+            favoritePostIds.has(id) ? favoritePostIds.delete(id) : favoritePostIds.add(id);
+            renderPosts();
+        }
+
+        function reactPost(id, emoji) {
+            const post = posts.find(p => p.id === id);
+            if (post) {
+                if (!post.reactions) post.reactions = {};
+                post.reactions[emoji] = (post.reactions[emoji] || 0) + 1;
+                post.favs = (post.favs || 0) + 1;
+                renderPosts();
+            }
+        }
+
+        function reportPost(id) {
+            const post = posts.find(p => p.id === id);
+            if (post) {
+                post.reports = (post.reports || 0) + 1;
+                alert('Publicación reportada a moderación.');
+                updateAdminReportList();
+            }
+        }
+
+        function censorePost(id) {
+            const post = posts.find(p => p.id === id);
+            if (post) {
+                post.text = '🛑 [ Mensaje censurado por el Admin ]';
+                renderPosts();
+            }
+        }
+
+        function deletePost(id) {
+            posts = posts.filter(p => p.id !== id);
+            renderPosts();
+        }
+
+        function clearCurrentRoom() {
+            if (confirm('¿Vaciar la sala actual?')) {
+                posts = posts.filter(p => p.room !== currentRoom);
+                renderPosts();
+            }
+        }
+
+        function switchRoom(room) {
+            currentRoom = room;
+            ['general', 'multimedia', 'lounge'].forEach(r => {
+                const btn = document.getElementById(`room-${r}`);
+                if (btn) {
+                    if (r === room) {
+                        btn.classList.add('border-l-4', 'border-l-sky-500', 'opacity-100');
+                    } else {
+                        btn.classList.remove('border-l-4', 'border-l-sky-500');
+                        btn.classList.add('opacity-80');
+                    }
+                }
+            });
+            renderPosts();
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            renderPosts();
+        }
+
+        function changeTheme(themeClass) {
+            document.body.className = `${themeClass} min-h-screen text-slate-800 relative overflow-x-hidden`;
+        }
+
+        // DONATIONS
+        function openDonateModal() { document.getElementById('modal-donate')?.classList.remove('hidden'); }
+        function closeDonateModal() { document.getElementById('modal-donate')?.classList.add('hidden'); }
+        
+        function selectCause(cause) {
+            selectedCause = cause;
+            document.getElementById('cause-project').className = cause === 'project' ? "aero-btn p-3 rounded-2xl text-left border-2 border-emerald-500 bg-emerald-50/50" : "aero-btn p-3 rounded-2xl text-left border-2 border-transparent";
+            document.getElementById('cause-creator').className = cause === 'creator' ? "aero-btn p-3 rounded-2xl text-left border-2 border-amber-500 bg-amber-50/50" : "aero-btn p-3 rounded-2xl text-left border-2 border-transparent";
+        }
+
+        function setAmount(val) { document.getElementById('custom-amount').value = val; }
+
+        function processDonation() {
+            const amount = document.getElementById('custom-amount').value || '5';
+            const causeText = selectedCause === 'project' ? 'Apoyo al Proyecto AquaNet' : 'Apoyo al Creador';
+            alert(`🎉 Redirigiendo a PayPal para completar la donación de $${amount} USD para "${causeText}"...`);
+            closeDonateModal();
+        }
+
+        // ADMIN
+        function openAdminModal() { document.getElementById('modal-admin')?.classList.remove('hidden'); }
+        function closeAdminModal() { document.getElementById('modal-admin')?.classList.add('hidden'); }
+
+        function verifyAdminPass() {
+            if (document.getElementById('admin-pass-input').value === 'admin123') {
+                isAdmin = true;
+                document.getElementById('admin-auth-box').classList.add('hidden');
+                document.getElementById('admin-controls').classList.remove('hidden');
+                updateAdminReportList();
+                renderPosts();
+            } else {
+                alert('Clave incorrecta.');
+            }
+        }
+
+        function promoteSelfAdmin() {
+            isAdmin = true;
+            document.getElementById('user-role-badge').textContent = 'ADMINISTRADOR';
+            document.getElementById('user-role-badge').className = 'text-[10px] font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded-full inline-block mt-1';
+            alert('¡Ahora eres Administrador Oficial en AquaNet!');
+            renderPosts();
+        }
+
+        function updateAdminReportList() {
+            const list = document.getElementById('reported-list');
+            const countEl = document.getElementById('reported-count');
+            const reported = posts.filter(p => p.reports > 0);
+            
+            if (countEl) countEl.textContent = reported.length;
+            if (!list) return;
+
+            if (reported.length === 0) {
+                list.innerHTML = `<p class="text-[11px] text-slate-500 italic">No hay reportes pendientes.</p>`;
+                return;
+            }
+
+            list.innerHTML = reported.map(p => `
+                <div class="flex items-center justify-between bg-white/60 p-2 rounded-xl">
+                    <span class="truncate max-w-[200px]"><strong>${p.username}:</strong> ${p.text}</span>
+                    <button onclick="deletePost('${p.id}')" class="text-red-600 font-bold px-2 py-0.5 rounded bg-red-100">Borrar</button>
+                </div>
+            `).join('');
+        }
+
+        loadSamplePosts();
+    </script>
+</body>
+</html>
