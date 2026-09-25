@@ -164,7 +164,6 @@
 
     .aero-body { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-    /* Mobile Adaptable Sidebar */
     .aero-sidebar {
       width: 230px;
       background: rgba(255, 255, 255, 0.3);
@@ -218,6 +217,23 @@
     .msg-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; font-size: 0.75rem; }
     .msg-author { font-weight: 700; color: var(--aero-text-blue); display: flex; align-items: center; gap: 5px; }
     .msg-author .badge-admin { background: linear-gradient(to right, #ef4444, #f97316); color: #fff; font-size: 0.6rem; padding: 1px 5px; border-radius: 8px; font-weight: 800; }
+    
+    /* Blue Verified Badge */
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      background: radial-gradient(circle at 30% 30%, #38bdf8, #0284c7);
+      color: #ffffff;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 900;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.4);
+      border: 1px solid #ffffff;
+    }
+
     .msg-time { color: #64748b; font-size: 0.68rem; }
     .msg-content { font-size: 0.88rem; color: #1e293b; line-height: 1.35; word-break: break-word; user-select: text; }
 
@@ -269,7 +285,26 @@
     .aero-audio-progress { height: 100%; width: 45%; background: linear-gradient(to right, #38bdf8, #4ade80); position: absolute; animation: audioWave 3s ease-in-out infinite alternate; }
     @keyframes audioWave { 0% { width: 10%; left: 0%; } 50% { width: 60%; left: 20%; } 100% { width: 30%; left: 70%; } }
 
-    /* Responsive Adaptation for Mobile */
+    /* Admin Manager Subpanel */
+    .admin-controls-panel {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid #7dd3fc;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .verified-tags-list {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px;
+    }
+    .verified-tag {
+      background: #e0f2fe; border: 1px solid #0284c7; border-radius: 12px;
+      padding: 2px 8px; font-size: 0.75rem; color: #0369a1; display: flex; align-items: center; gap: 4px;
+    }
+    .remove-tag { cursor: pointer; color: #ef4444; font-weight: bold; }
+
     @media (max-width: 768px) {
       .aero-body { flex-direction: column; }
       .aero-sidebar {
@@ -332,7 +367,11 @@
           
           <div class="msg-card" data-id="post-1">
             <div class="msg-header">
-              <span class="msg-author">🌐 AquaBot <span class="badge-admin">OFICIAL</span></span>
+              <span class="msg-author">
+                🌐 AquaBot 
+                <span class="verified-badge" title="Verificado">✓</span>
+                <span class="badge-admin">OFICIAL</span>
+              </span>
               <span class="msg-time">Hace un momento</span>
             </div>
             <div class="msg-content">
@@ -401,6 +440,7 @@
     </div>
   </div>
 
+  <!-- Modal Admin con Verificador Integrado -->
   <div class="aero-modal-overlay" id="adminModal">
     <div class="aero-modal">
       <div class="aero-modal-header">
@@ -408,14 +448,36 @@
         <button class="aero-modal-close" onclick="closeModal('adminModal')">✕</button>
       </div>
       <div class="aero-modal-body">
-        <p>Ingresa tu clave secreta de administración:</p>
-        <div class="aero-field">
-          <label>Contraseña Admin:</label>
-          <input type="password" id="adminKey" placeholder="Introduce la contraseña...">
+        <div id="adminLoginForm">
+          <p>Ingresa tu clave secreta de administración:</p>
+          <div class="aero-field" style="margin-top: 8px;">
+            <label>Contraseña Admin:</label>
+            <input type="password" id="adminKey" placeholder="Introduce la contraseña...">
+          </div>
+          <button class="aero-btn aero-btn-admin" style="width:100%; justify-content:center; padding:9px; margin-top: 10px;" onclick="verifyAdmin()">
+            Iniciar Sesión
+          </button>
         </div>
-        <button class="aero-btn aero-btn-admin" style="width:100%; justify-content:center; padding:9px;" onclick="verifyAdmin()">
-          Iniciar Sesión de Admin
-        </button>
+
+        <!-- Subpanel visible solo al autenticarse como Admin -->
+        <div class="admin-controls-panel" id="adminControlsPanel">
+          <p style="color: #16a34a; font-weight: bold;">✔ Sesión de Admin Activa</p>
+          
+          <div class="aero-field">
+            <label>Otorgar Verificado Azul a Usuario:</label>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="newVerifiedUser" placeholder="Nombre (Ej: Anónimo)" style="flex:1;">
+              <button class="aero-btn aero-btn-admin" onclick="addVerifiedUser()">Otorgar ✓</button>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-weight:600; color:#0369a1; font-size:0.8rem;">Usuarios Verificados:</label>
+            <div class="verified-tags-list" id="verifiedTagsList">
+              <!-- Se llenan dinámicamente -->
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -425,6 +487,7 @@
     let isAdmin = false;
     let selectedImageBase64 = null;
     let favoritesList = [];
+    let verifiedUsersList = ['AquaBot', 'Admin']; // Lista inicial de verificados
     let postIdCounter = 2;
 
     const messageStream = document.getElementById('messageStream');
@@ -495,12 +558,24 @@
       msgCard.setAttribute('data-id', newId);
 
       let mediaHTML = selectedImageBase64 ? `<div class="msg-media"><img src="${selectedImageBase64}"></div>` : '';
+      
+      // Nombre de autor
+      let authorName = isAdmin ? 'Admin' : 'Anónimo';
       const adminBadgeHTML = isAdmin ? '<span class="badge-admin">ADMIN</span>' : '';
+      
+      // Verificación azul
+      const isUserVerified = isAdmin || verifiedUsersList.includes(authorName);
+      const verifiedBadgeHTML = isUserVerified ? '<span class="verified-badge" title="Verificado">✓</span>' : '';
+      
       const deleteBtnHTML = isAdmin ? `<button class="admin-delete-btn" onclick="deletePost('${newId}')">🗑️ Eliminar</button>` : '';
 
       msgCard.innerHTML = `
         <div class="msg-header">
-          <span class="msg-author">💧 Anónimo ${adminBadgeHTML}</span>
+          <span class="msg-author">
+            💧 ${authorName} 
+            ${verifiedBadgeHTML}
+            ${adminBadgeHTML}
+          </span>
           <span class="msg-time">${timeNow}</span>
         </div>
         <div class="msg-content">${escapeHTML(text)}</div>
@@ -543,17 +618,45 @@
       document.getElementById('favBadge').innerText = favoritesList.length;
     }
 
+    // Sistema de Admin & Verificación
     function verifyAdmin() {
       const pass = document.getElementById('adminKey').value;
       if (pass === 'aerofalled') {
         isAdmin = true;
-        alert('¡Acceso Administrador Concedido!');
-        closeModal('adminModal');
+        document.getElementById('adminLoginForm').style.display = 'none';
+        document.getElementById('adminControlsPanel').style.display = 'flex';
         document.getElementById('adminHeaderBtn').innerText = '🛡️ Admin Activo';
         document.getElementById('adminHeaderBtn').style.background = 'linear-gradient(to bottom, #ef4444, #b91c1c)';
+        renderVerifiedList();
       } else {
         alert('Contraseña incorrecta.');
       }
+    }
+
+    function addVerifiedUser() {
+      const input = document.getElementById('newVerifiedUser');
+      const name = input.value.trim();
+      if (name && !verifiedUsersList.includes(name)) {
+        verifiedUsersList.push(name);
+        input.value = '';
+        renderVerifiedList();
+      }
+    }
+
+    function removeVerifiedUser(name) {
+      verifiedUsersList = verifiedUsersList.filter(u => u !== name);
+      renderVerifiedList();
+    }
+
+    function renderVerifiedList() {
+      const container = document.getElementById('verifiedTagsList');
+      container.innerHTML = '';
+      verifiedUsersList.forEach(user => {
+        const tag = document.createElement('div');
+        tag.className = 'verified-tag';
+        tag.innerHTML = `<span>✓ ${user}</span> <span class="remove-tag" onclick="removeVerifiedUser('${user}')">✕</span>`;
+        container.appendChild(tag);
+      });
     }
 
     function deletePost(id) {
@@ -572,4 +675,3 @@
   </script>
 </body>
 </html>
-
